@@ -250,15 +250,9 @@ export default function App() {
   const [resetEmailMessage, setResetEmailMessage] = useState('');
   const [resetEmailError, setResetEmailError] = useState('');
   const [passwordResetMode, setPasswordResetMode] = useState(() => {
-    // Supabase may return recovery links as either an explicit type=recovery
-    // URL or a PKCE callback containing ?code=... . The latter does not
-    // include the word "recovery", so detect the auth callback as well.
     const query = new URLSearchParams(window.location.search);
     const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
-    const recoveryType = query.get("type") === "recovery" || hash.get("type") === "recovery" || query.get("flow") === "password-reset";
-    const authCallback = query.has("code") || query.has("token_hash") ||
-      hash.has("access_token") || hash.has("token_hash");
-    return recoveryType || authCallback;
+    return query.get("type") === "recovery" || hash.get("type") === "recovery";
   });
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
@@ -354,10 +348,8 @@ export default function App() {
     }
     setResetEmailBusy(true);
     try {
-      const resetUrl = new URL(window.location.origin);
-      resetUrl.searchParams.set("flow", "password-reset");
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: resetUrl.toString()
+        redirectTo: window.location.origin
       });
       if (error) throw error;
       setResetEmailMessage('Password reset email sent. Open the newest email and follow its link to create your password.');
@@ -993,7 +985,7 @@ const testSupabase = async () => {
           <p style={{ color: "#647582", marginTop: 0 }}>Select a category to view and manage its documents.</p>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(190px,1fr))", gap: 18 }}>
             {documentSubTabs[active].map((sub) => <button key={sub} type="button"
-              onClick={() => { setActiveSubTab(sub); setDocCategory(sub); setDocSearch(""); setMessage(""); }}
+              onClick={() => { setSelectedExpiryStatus(""); setSelectedFolderId(""); setActiveSubTab(sub); setDocCategory(sub); setDocSearch(""); setMessage(""); }}
               style={{ minHeight: 155, padding: 22, border: "1px solid #dce5e9", borderRadius: 12, background: "white", boxShadow: "0 3px 12px #0000000d", cursor: "pointer", textAlign: "left", color: "#243447", transition: "transform 0.15s" }}>
               <div style={{ width: 42, height: 42, borderRadius: 10, background: "#e5f4f1", color: "#167c80", display: "grid", placeItems: "center", fontSize: 22, marginBottom: 18 }}>▤</div>
               <strong style={{ fontSize: 17 }}>{sub}</strong>
@@ -1006,7 +998,7 @@ const testSupabase = async () => {
         </div>}
 
         {(documentSubTabs[active] || []).length > 0 && !!activeSubTab && <div style={{ marginTop: 20 }}>
-          <button type="button" onClick={() => setActiveSubTab("")} style={{ ...smallButton, background: "#657681", marginBottom: 14 }}>← Back to folders</button>
+          <button type="button" onClick={() => { setSelectedExpiryStatus(""); setSelectedFolderId(""); setActiveSubTab(""); setDocSearch(""); }} style={{ ...smallButton, background: "#657681", marginBottom: 14 }}>← Back to folders</button>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: 12 }}>
             {["Expired", "Urgent", "Due soon", "Upcoming", "Current"].map(status => <button
               key={status}
@@ -1046,7 +1038,7 @@ const testSupabase = async () => {
                 : `${activeSubTab} – Document library`} ({filteredDocs.length})</h2>
             {selectedExpiryStatus && <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
               <b style={{ color: reviewStatusColor(selectedExpiryStatus) }}>Showing: {selectedExpiryStatus} documents</b>
-              <button type="button" style={smallButton} onClick={() => setSelectedExpiryStatus("")}>Clear expiry filter</button>
+              <button type="button" style={smallButton} onClick={() => { setSelectedExpiryStatus(""); setDocSearch(""); }}>Clear expiry filter</button>
             </div>}
             {activeSubTab === "CICs" && selectedFolderId && <button type="button" style={{ ...smallButton, background: "#657681" }} onClick={() => setSelectedFolderId("")}>← Back to unassigned PDFs</button>}
             {activeSubTab === "CICs" && !selectedExpiryStatus && <p style={{ color: "#647582" }}>
@@ -1130,7 +1122,7 @@ const testSupabase = async () => {
                   <strong style={{ display: "block", margin: "7px 0" }}>📁 {folder.folderName}</strong>
                   <div style={{ color: "#167c80", fontWeight: 700, fontSize: 13 }}>{count} document(s)</div>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 10 }}>
-                    <button type="button" style={smallButton} onClick={() => { setSelectedFolderId(folder.id); setDocCustomer(folder.customerId); setDocSite(folder.siteId); notify(`Showing PDFs assigned to ${folder.folderName}.`); }}>View PDFs</button>
+                    <button type="button" style={smallButton} onClick={() => { setSelectedExpiryStatus(""); setDocSearch(""); setSelectedFolderId(folder.id); setDocCustomer(folder.customerId); setDocSite(folder.siteId); notify(`Showing PDFs assigned to ${folder.folderName}.`); }}>View PDFs</button>
                     <button type="button" style={{ ...smallButton, background: "#657681" }} onClick={() => renameDocumentFolder(folder)}>Rename</button>
                     <button type="button" style={{ ...smallButton, background: "#9b3b3b" }} onClick={() => deleteDocumentFolder(folder)}>Delete</button>
                   </div>
